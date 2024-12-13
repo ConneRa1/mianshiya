@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.io.Serializable;
 import java.util.Date;
+
+import lombok.Builder;
 import lombok.Data;
 import lombok.experimental.SuperBuilder;
 
@@ -15,7 +17,7 @@ import lombok.experimental.SuperBuilder;
  */
 @TableName(value ="question_bank_question")
 @Data
-@SuperBuilder
+@Builder
 public class QuestionBankQuestion implements Serializable {
     /**
      * id

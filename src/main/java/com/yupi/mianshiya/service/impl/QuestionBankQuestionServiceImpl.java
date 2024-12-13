@@ -3,6 +3,7 @@ package com.yupi.mianshiya.service.impl;
 import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yupi.mianshiya.annotation.AuthCheck;
@@ -233,14 +234,32 @@ public class QuestionBankQuestionServiceImpl extends ServiceImpl<QuestionBankQue
         // 校验题库id
         ThrowUtils.throwIf(questionIds == null || questionIds.isEmpty(),ErrorCode.PARAMS_ERROR);
         ThrowUtils.throwIf(questionBankId==null,ErrorCode.PARAMS_ERROR);
-        return super.removeByIds(questionIds);
+        LambdaQueryWrapper<QuestionBankQuestion> queryWrapper = new LambdaQueryWrapper<QuestionBankQuestion>()
+                .eq(QuestionBankQuestion::getQuestionBankId,questionBankId)
+                .in(QuestionBankQuestion::getQuestionId,questionIds);
+        return super.remove(queryWrapper);
     }
 
     @Override
     // 分批处理
-    public Boolean batchAddQuestion(QuestionBankQuestionBatchAddRequest questionBankQuestionBatchAddRequest) {
+    public Boolean batchAddQuestion(QuestionBankQuestionBatchAddRequest questionBankQuestionBatchAddRequest,Long userId) {
         Long questionBankId = questionBankQuestionBatchAddRequest.getQuestionBankId();
-        List<Long> questionId = questionBankQuestionBatchAddRequest.getQuestionId();
+        List<Long> validQuestionIdList = questionBankQuestionBatchAddRequest.getQuestionId();
+
+        // 检查哪些题目还不存在于题库中，避免重复插入
+        LambdaQueryWrapper<QuestionBankQuestion> lambdaQueryWrapper = Wrappers.lambdaQuery(QuestionBankQuestion.class)
+                .eq(QuestionBankQuestion::getQuestionBankId, questionBankId)
+                .in(QuestionBankQuestion::getQuestionId, validQuestionIdList);
+        List<QuestionBankQuestion> existQuestionList = this.list(lambdaQueryWrapper);
+        // 已存在于题库中的题目 id
+        Set<Long> existQuestionIdSet = existQuestionList.stream()
+                .map(QuestionBankQuestion::getId)
+                .collect(Collectors.toSet());
+        // 已存在于题库中的题目 id，不需要再次添加
+        validQuestionIdList = validQuestionIdList.stream().filter(questionId -> {
+            return !existQuestionIdSet.contains(questionId);
+        }).collect(Collectors.toList());
+        ThrowUtils.throwIf(CollUtil.isEmpty(validQuestionIdList), ErrorCode.PARAMS_ERROR, "所有题目都已存在于题库中");
         int batchSize=500;
         Boolean flag=true;
         //自定义线程池
@@ -255,14 +274,15 @@ public class QuestionBankQuestionServiceImpl extends ServiceImpl<QuestionBankQue
         //保存异步结果
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-        for(int i=0;i<questionId.size();i+=batchSize){
-            List<Long> subList = questionId.subList(i,Math.min(i+batchSize,questionId.size()));
+        for(int i=0;i<validQuestionIdList.size();i+=batchSize){
+            List<Long> subList = validQuestionIdList.subList(i,Math.min(i+batchSize,validQuestionIdList.size()));
             questionBankQuestionBatchAddRequest.setQuestionId(subList);
             List<QuestionBankQuestion> addQuestions =
                     subList.stream().map(item->{
                         return QuestionBankQuestion.builder()
                                 .questionId(item)
                                 .questionBankId(questionBankId)
+                                .userId(userId)
                                 .build();
                     }).collect(Collectors.toList());
             // !!!这里去找到了当前的代理对象，不然只用this调用方法，事务不启用
@@ -287,11 +307,24 @@ public class QuestionBankQuestionServiceImpl extends ServiceImpl<QuestionBankQue
     @Override
     public Boolean batchRemoveQuestion(QuestionBankQuestionBatchRemoveRequest questionBankQuestionBatchRemoveRequest) {
         Long questionBankId = questionBankQuestionBatchRemoveRequest.getQuestionBankId();
-        List<Long> questionIds = questionBankQuestionBatchRemoveRequest.getQuestionId();
+        List<Long> validQuestionIdList = questionBankQuestionBatchRemoveRequest.getQuestionId();
+
+        // 检查哪些题目还不存在于题库中，避免重复插入
+        LambdaQueryWrapper<QuestionBankQuestion> lambdaQueryWrapper = Wrappers.lambdaQuery(QuestionBankQuestion.class)
+                .eq(QuestionBankQuestion::getQuestionBankId, questionBankId)
+                .in(QuestionBankQuestion::getQuestionId, validQuestionIdList);
+        List<QuestionBankQuestion> existQuestionList = this.list(lambdaQueryWrapper);
+        // 已存在于题库中的题目 id
+        Set<Long> existQuestionIdSet = existQuestionList.stream()
+                .map(QuestionBankQuestion::getId)
+                .collect(Collectors.toSet());
+        // 已存在于题库中的题目 id，不需要再次添加
+        validQuestionIdList = new ArrayList<>(existQuestionIdSet);
+        ThrowUtils.throwIf(CollUtil.isEmpty(validQuestionIdList), ErrorCode.PARAMS_ERROR, "所有题目都已存在于题库中");
         int batchSize=500;
         Boolean flag=true;
-        for(int i=0;i<questionIds.size();i+=batchSize){
-            List<Long> subList = questionIds.subList(i,Math.min(i+batchSize,questionIds.size()));
+        for(int i=0;i<validQuestionIdList .size();i+=batchSize){
+            List<Long> subList = validQuestionIdList .subList(i,Math.min(i+batchSize,validQuestionIdList .size()));
             questionBankQuestionBatchRemoveRequest.setQuestionId(subList);
             // !!! 这里去找到了当前的代理对象，不然只用this调用方法，事务不启用
             QuestionBankQuestionService questionBankQuestionService=

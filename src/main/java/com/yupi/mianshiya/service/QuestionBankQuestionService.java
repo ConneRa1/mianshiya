@@ -64,7 +64,7 @@ public interface QuestionBankQuestionService extends IService<QuestionBankQuesti
     Boolean batchRemoveQuestionInner(QuestionBankQuestionBatchRemoveRequest questionBankQuestionBatchRemoveRequest);
 
     // 分批处理
-    Boolean batchAddQuestion(QuestionBankQuestionBatchAddRequest questionBankQuestionBatchAddRequest);
+    Boolean batchAddQuestion(QuestionBankQuestionBatchAddRequest questionBankQuestionBatchAddRequest,Long userId);
 
     Boolean batchRemoveQuestion(QuestionBankQuestionBatchRemoveRequest questionBankQuestionBatchRemoveRequest);
 }

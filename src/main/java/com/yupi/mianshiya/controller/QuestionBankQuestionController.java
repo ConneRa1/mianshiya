@@ -9,10 +9,7 @@ import com.yupi.mianshiya.common.ResultUtils;
 import com.yupi.mianshiya.constant.UserConstant;
 import com.yupi.mianshiya.exception.BusinessException;
 import com.yupi.mianshiya.exception.ThrowUtils;
-import com.yupi.mianshiya.model.dto.questionBankQuestion.QuestionBankQuestionAddRequest;
-import com.yupi.mianshiya.model.dto.questionBankQuestion.QuestionBankQuestionEditRequest;
-import com.yupi.mianshiya.model.dto.questionBankQuestion.QuestionBankQuestionQueryRequest;
-import com.yupi.mianshiya.model.dto.questionBankQuestion.QuestionBankQuestionUpdateRequest;
+import com.yupi.mianshiya.model.dto.questionBankQuestion.*;
 import com.yupi.mianshiya.model.entity.QuestionBankQuestion;
 import com.yupi.mianshiya.model.entity.User;
 import com.yupi.mianshiya.model.vo.QuestionBankQuestionVO;
@@ -150,4 +147,17 @@ public class QuestionBankQuestionController {
     }
 
     // endregion
+
+    @PostMapping("/add/batch")
+    public BaseResponse<Boolean> batchAddQuestionBankQuestion(@RequestBody QuestionBankQuestionBatchAddRequest questionBankQuestionBatchAddRequest, HttpServletRequest request) {
+        User user = userService.getLoginUser(request);
+        Boolean addQuestion = questionBankQuestionService.batchAddQuestion(questionBankQuestionBatchAddRequest, user.getId());
+        return ResultUtils.success(addQuestion);
+    }
+    @PostMapping("/remove/batch")
+    public BaseResponse<Boolean> batchRemoveQuestionBankQuestion(@RequestBody QuestionBankQuestionBatchRemoveRequest questionBankQuestionBatchRemoveRequest, HttpServletRequest request) {
+        Boolean addQuestion = questionBankQuestionService.batchRemoveQuestion(questionBankQuestionBatchRemoveRequest);
+        return ResultUtils.success(addQuestion);
+    }
+
 }
