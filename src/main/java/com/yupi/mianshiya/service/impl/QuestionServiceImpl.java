@@ -10,7 +10,10 @@ import com.yupi.mianshiya.common.ErrorCode;
 import com.yupi.mianshiya.constant.CommonConstant;
 import com.yupi.mianshiya.exception.ThrowUtils;
 import com.yupi.mianshiya.mapper.QuestionMapper;
+import com.yupi.mianshiya.model.dto.question.QuestionBatchRemoveRequest;
+import com.yupi.mianshiya.model.dto.question.QuestionEsDTO;
 import com.yupi.mianshiya.model.dto.question.QuestionQueryRequest;
+import com.yupi.mianshiya.model.entity.Question;
 import com.yupi.mianshiya.model.entity.Question;
 import com.yupi.mianshiya.model.entity.QuestionBankQuestion;
 import com.yupi.mianshiya.model.entity.User;
@@ -25,10 +28,26 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.sort.SortBuilder;
+import org.elasticsearch.search.sort.SortBuilders;
+import org.elasticsearch.search.sort.SortOrder;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.elasticsearch.core.ElasticsearchRestTemplate;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
+import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
+import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -40,10 +59,14 @@ import java.util.stream.Collectors;
  */
 @Service
 @Slf4j
-@AllArgsConstructor
 public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> implements QuestionService {
-    private final UserService userService;
-    private final QuestionBankQuestionService questionBankQuestionService;
+    @Resource
+    private UserService userService;
+    @Resource
+    @Lazy
+    private QuestionBankQuestionService questionBankQuestionService;
+    @Resource
+    private ElasticsearchRestTemplate elasticsearchRestTemplate;
     /**
      * 校验数据
      *
@@ -179,6 +202,76 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
     }
 
     @Override
+    public Page<Question> searchFromEs(QuestionQueryRequest questionQueryRequest) {
+        // boolQueryBuild
+        Long id = questionQueryRequest.getId();
+        Long notId = questionQueryRequest.getNotId();
+        String searchText = questionQueryRequest.getSearchText();
+        List<String> tags = questionQueryRequest.getTags();
+        Long userId = questionQueryRequest.getUserId();
+        Long questionBankId = questionQueryRequest.getQuestionBankId();
+        int current = questionQueryRequest.getCurrent()-1;
+        int pageSize = questionQueryRequest.getPageSize();
+        String sortField = questionQueryRequest.getSortField();
+        String sortOrder = questionQueryRequest.getSortOrder();
+
+        BoolQueryBuilder boolQueryBuilder=new BoolQueryBuilder();
+        boolQueryBuilder.filter(QueryBuilders.matchQuery("isDelete", 0));
+        if(id!=null) {
+            boolQueryBuilder.filter(QueryBuilders.termQuery("id", id));
+        }
+        if(notId!=null) {
+            boolQueryBuilder.mustNot(QueryBuilders.termQuery("Id", notId));
+        }
+        if(userId!=null) {
+            boolQueryBuilder.filter(QueryBuilders.termQuery("userId", userId));
+        }
+        if(questionBankId!=null) {
+            boolQueryBuilder.filter(QueryBuilders.termQuery("questionBankId", questionBankId));
+        }
+        // search用should,包含一个即可
+        if (StringUtils.isNotBlank(searchText)) {
+            boolQueryBuilder.should(QueryBuilders.matchQuery("title", searchText));
+            boolQueryBuilder.should(QueryBuilders.matchQuery("content", searchText));
+            boolQueryBuilder.minimumShouldMatch(1);
+        }
+        // 包含任何一个标签即可
+        if (CollUtil.isNotEmpty(tags)) {
+            BoolQueryBuilder orTagBoolQueryBuilder = QueryBuilders.boolQuery();
+            for (String tag : tags) {
+                orTagBoolQueryBuilder.should(QueryBuilders.termQuery("tags", tag));
+            }
+            orTagBoolQueryBuilder.minimumShouldMatch(1);
+            boolQueryBuilder.filter(orTagBoolQueryBuilder);
+        }
+        // 排序
+        SortBuilder<?> sortBuilder = SortBuilders.scoreSort();
+        if (StringUtils.isNotBlank(sortField)) {
+            sortBuilder = SortBuilders.fieldSort(sortField);
+            sortBuilder.order(CommonConstant.SORT_ORDER_ASC.equals(sortOrder) ? SortOrder.ASC : SortOrder.DESC);
+        }
+        // 分页
+        PageRequest pageRequest = PageRequest.of((int) current, (int) pageSize);
+        // 构造查询
+        NativeSearchQuery searchQuery = new NativeSearchQueryBuilder().withQuery(boolQueryBuilder)
+                .withPageable(pageRequest).withSorts(sortBuilder).build();
+        SearchHits<QuestionEsDTO> searchHits = elasticsearchRestTemplate.search(searchQuery, QuestionEsDTO.class);
+        Page<Question> page = new Page<>();
+        page.setTotal(searchHits.getTotalHits());
+        List<Question> resourceList = new ArrayList<>();
+        // 查出结果后，从 db 获取最新动态数据（比如点赞数）
+        if (searchHits.hasSearchHits()) {
+            List<SearchHit<QuestionEsDTO>> searchHitList = searchHits.getSearchHits();
+            for (SearchHit<QuestionEsDTO> searchHit : searchHitList) {
+                resourceList.add(QuestionEsDTO.dtoToObj(searchHit.getContent()));
+            }
+        }
+        page.setRecords(resourceList);
+        return page;
+        
+    }
+
+    @Override
     public Page<Question> listQuestionByPage(QuestionQueryRequest questionQueryRequest) {
         long current = questionQueryRequest.getCurrent();
         long size = questionQueryRequest.getPageSize();
@@ -206,5 +299,11 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         return questionPage;
     }
 
-
+    @Override
+    public Boolean batchAddQuestion(QuestionBatchRemoveRequest questionBatchRemoveRequest) {
+        List<Long> questionIds = questionBatchRemoveRequest.getQuestionId();
+        // 校验题库id
+        ThrowUtils.throwIf(questionIds == null || questionIds.isEmpty(),ErrorCode.PARAMS_ERROR);
+        return super.removeByIds(questionIds);
+    }
 }

@@ -233,4 +233,11 @@ public class QuestionController {
     }
 
     // endregion
+
+    @PostMapping
+    public BaseResponse<Page<Question>> searchFromEs(@RequestBody QuestionQueryRequest questionQueryRequest){
+        Page<Question> questionPage = questionService.searchFromEs(questionQueryRequest);
+        return ResultUtils.success(questionPage);
+
+    }
 }

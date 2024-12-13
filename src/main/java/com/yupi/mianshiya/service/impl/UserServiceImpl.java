@@ -6,6 +6,8 @@ import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yupi.mianshiya.common.ErrorCode;
+import com.yupi.mianshiya.config.RedissonConfig;
+import com.yupi.mianshiya.constant.CacheNames;
 import com.yupi.mianshiya.constant.CommonConstant;
 import com.yupi.mianshiya.exception.BusinessException;
 import com.yupi.mianshiya.mapper.UserMapper;
@@ -16,13 +18,20 @@ import com.yupi.mianshiya.model.vo.LoginUserVO;
 import com.yupi.mianshiya.model.vo.UserVO;
 import com.yupi.mianshiya.service.UserService;
 import com.yupi.mianshiya.utils.SqlUtils;
+
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
+
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import me.chanjar.weixin.common.bean.WxOAuth2UserInfo;
 import org.apache.commons.lang3.StringUtils;
+import org.redisson.api.RBitSet;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
@@ -35,12 +44,15 @@ import org.springframework.util.DigestUtils;
  */
 @Service
 @Slf4j
+@AllArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
 
+    private final RedissonClient redissonClient;
     /**
      * 盐值，混淆密码
      */
     public static final String SALT = "yupi";
+    private final RedissonConfig redissonConfig;
 
     @Override
     public long userRegister(String userAccount, String userPassword, String checkPassword) {
@@ -269,4 +281,37 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 sortField);
         return queryWrapper;
     }
+
+    @Override
+    public boolean addSignIn(User user){
+        LocalDate localDate = LocalDate.now();
+        int year = localDate.getYear();
+        int dayOfYear = localDate.getDayOfYear();
+        String key = CacheNames.getUserSignInKey(year,user.getId());
+        RBitSet bitSet= redissonClient.getBitSet(key);
+        if(!bitSet.get(dayOfYear)){
+            return bitSet.set(dayOfYear,true);
+        }
+        return true;
+    }
+
+    @Override
+    public List<Integer> getSignInMap(User user, Integer year) {
+        String key = CacheNames.getUserSignInKey(year,user.getId());
+        RBitSet rBitSet= redissonClient.getBitSet(key);
+        //把redis里的bitmap存到内存中操作，减少通信成本
+        BitSet bitSet = rBitSet.asBitSet();
+        Integer index=bitSet.nextSetBit(0);
+        List<Integer> dateList=new ArrayList<>();
+        //使用nextSetBit，用二进制，减少循环消耗
+        while(index>0){
+            //不传所有日期，只传index，减小传输大小
+            dateList.add(index);
+            index=bitSet.nextSetBit(index+1);
+        }
+        return dateList;
+    }
+
+
+
 }

@@ -54,19 +54,7 @@ public class QuestionBankQuestionController {
     @PostMapping("/add")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<Long> addQuestionBankQuestion(@RequestBody QuestionBankQuestionAddRequest questionBankQuestionAddRequest, HttpServletRequest request) {
-        ThrowUtils.throwIf(questionBankQuestionAddRequest == null, ErrorCode.PARAMS_ERROR);
-        QuestionBankQuestion questionBankQuestion = new QuestionBankQuestion();
-        BeanUtils.copyProperties(questionBankQuestionAddRequest, questionBankQuestion);
-        // 数据校验
-        questionBankQuestionService.validQuestionBankQuestion(questionBankQuestionAddRequest , true);
-        User loginUser = userService.getLoginUser(request);
-        questionBankQuestion.setUserId(loginUser.getId());
-        // 写入数据库
-        boolean result = questionBankQuestionService.save(questionBankQuestion);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-        // 返回新写入的数据 id
-        long newQuestionBankQuestionId = questionBankQuestion.getId();
-        return ResultUtils.success(newQuestionBankQuestionId);
+        return questionBankQuestionService.add(questionBankQuestionAddRequest);
     }
 
     /**
