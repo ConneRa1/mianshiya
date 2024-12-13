@@ -83,7 +83,10 @@ public class QuestionBankQuestionServiceImpl extends ServiceImpl<QuestionBankQue
     public BaseResponse<Long> add(QuestionBankQuestionAddRequest questionBankQuestionAddRequest)
     {
         validQuestionBankQuestion(questionBankQuestionAddRequest, true);
-        QuestionBankQuestion questionBankQuestion = new QuestionBankQuestion();
+        QuestionBankQuestion questionBankQuestion = QuestionBankQuestion.builder()
+                .questionId(questionBankQuestionAddRequest.getQuestionId())
+                .questionBankId(questionBankQuestionAddRequest.getQuestionBankId())
+                .build();
         questionBankQuestion.setQuestionId(questionBankQuestionAddRequest.getQuestionId());
         questionBankQuestion.setQuestionBankId(questionBankQuestionAddRequest.getQuestionBankId());
         boolean save = super.save(questionBankQuestion);
