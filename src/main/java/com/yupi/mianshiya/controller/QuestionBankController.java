@@ -1,11 +1,20 @@
 package com.yupi.mianshiya.controller;
 
+import com.alibaba.csp.sentinel.Entry;
+import com.alibaba.csp.sentinel.EntryType;
+import com.alibaba.csp.sentinel.SphU;
+import com.alibaba.csp.sentinel.Tracer;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.alibaba.csp.sentinel.slots.block.degrade.DegradeException;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
 import com.yupi.mianshiya.annotation.AuthCheck;
 import com.yupi.mianshiya.common.BaseResponse;
 import com.yupi.mianshiya.common.DeleteRequest;
 import com.yupi.mianshiya.common.ErrorCode;
 import com.yupi.mianshiya.common.ResultUtils;
+import com.yupi.mianshiya.constant.SentinelConstant;
 import com.yupi.mianshiya.constant.UserConstant;
 import com.yupi.mianshiya.exception.BusinessException;
 import com.yupi.mianshiya.exception.ThrowUtils;
@@ -141,6 +150,16 @@ public class QuestionBankController {
         ThrowUtils.throwIf(questionBankQueryRequest == null, ErrorCode.PARAMS_ERROR);
         Long id = questionBankQueryRequest.getId();
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+
+        // hotkey探测，有就直接返
+        String key="bank_detail_"+id;
+        if(JdHotKeyStore.isHotKey(key)){
+            Object vo = JdHotKeyStore.get(key);
+            if(vo!=null){
+                return ResultUtils.success((QuestionBankVO) vo);
+            }
+        }
+
         // 查询数据库
         QuestionBank questionBank = questionBankService.getById(id);
         ThrowUtils.throwIf(questionBank == null, ErrorCode.NOT_FOUND_ERROR);
@@ -154,6 +173,9 @@ public class QuestionBankController {
             Page<Question> questionPage = questionService.listQuestionByPage(questionQueryRequest);
             questionBankVO.setQuestionPage(questionPage);
         }
+
+        //smartSet是热键就设置
+        JdHotKeyStore.smartSet(key,questionBankVO);
         // 获取封装类
         return ResultUtils.success(questionBankVO);
     }
@@ -184,8 +206,10 @@ public class QuestionBankController {
      * @return
      */
     @PostMapping("/list/page/vo")
-    public BaseResponse<Page<QuestionBankVO>> listQuestionBankVOByPage(@RequestBody QuestionBankQueryRequest questionBankQueryRequest,
-                                                               HttpServletRequest request) {
+    @SentinelResource(value = SentinelConstant.LIST_QUESTION_VO_BY_PAGE,
+            blockHandler = "handleBlockException",
+            fallback = "handleFallback")
+    public BaseResponse<Page<QuestionBankVO>> listQuestionBankVOByPage(@RequestBody QuestionBankQueryRequest questionBankQueryRequest, HttpServletRequest request) {
         long current = questionBankQueryRequest.getCurrent();
         long size = questionBankQueryRequest.getPageSize();
         // 限制爬虫
@@ -195,6 +219,69 @@ public class QuestionBankController {
                 questionBankService.getQueryWrapper(questionBankQueryRequest));
         // 获取封装类
         return ResultUtils.success(questionBankService.getQuestionBankVOPage(questionBankPage, request));
+    }
+
+    @PostMapping("/list/page/vo/sentinel")
+    public BaseResponse<Page<QuestionBankVO>> listQuestionBankVOByPageSentinel(@RequestBody QuestionBankQueryRequest questionBankQueryRequest, HttpServletRequest request) {
+        long current = questionBankQueryRequest.getCurrent();
+        long size = questionBankQueryRequest.getPageSize();
+        // 限制爬虫
+        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+
+        Entry entry = null;
+        String ip = request.getRemoteAddr();
+        try {
+            // entry 定义（方法名，entryType，batchCount,要记录的key）
+            entry = SphU.entry(SentinelConstant.LIST_QUESTION_VO_BY_PAGE, EntryType.IN, 1, ip);
+            // 查询数据库
+            Page<QuestionBank> questionBankPage = questionBankService.page(new Page<>(current, size),
+                    questionBankService.getQueryWrapper(questionBankQueryRequest));
+            // 获取封装类
+            return ResultUtils.success(questionBankService.getQuestionBankVOPage(questionBankPage, request));
+        } catch (Throwable e) {
+            // 不是降级异常，就按原来的抛出
+            if (!BlockException.isBlockException(e)) {
+                Tracer.trace(e);
+                return ResultUtils.error(ErrorCode.SYSTEM_ERROR);
+            }
+            if (e instanceof DegradeException) {
+                return handleBlockException(questionBankQueryRequest, request, e);
+            }
+            return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "操作过于频繁，请稍后再试");
+
+        } finally {
+            if (entry != null) {
+                // entry.exit要与上面的获取成对出现，且key要相同
+                entry.exit(1,ip);
+            }
+        }
+
+
+    }
+
+
+    /**
+     * 处理流控
+     *
+     * @param questionBankQueryRequest
+     * @param request
+     * @param blockException
+     * @return
+     */
+    public  BaseResponse<Page<QuestionBankVO>> handleBlockException(@RequestBody QuestionBankQueryRequest questionBankQueryRequest, HttpServletRequest request, BlockException blockException) {
+        return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "系统压力过大");
+    }
+
+    /**
+     * 处理熔断，提供降级服务
+     *
+     * @param questionBankQueryRequest
+     * @param request
+     * @param throwable
+     * @return
+     */
+    public  BaseResponse<Page<QuestionBankVO>> handleBlockException(@RequestBody QuestionBankQueryRequest questionBankQueryRequest, HttpServletRequest request, Throwable throwable) {
+        return ResultUtils.success(null);
     }
 
     /**
