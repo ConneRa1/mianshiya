@@ -1,5 +1,6 @@
 package com.yupi.mianshiya.service.impl;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -99,7 +100,7 @@ public class QuestionBankQuestionServiceImpl extends ServiceImpl<QuestionBankQue
     }
 
     @Override
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> remove(QuestionBankQuestionRemoveRequest questionBankQuestionRemoveRequest)
     {
         validQuestionBankQuestion(questionBankQuestionRemoveRequest, true);

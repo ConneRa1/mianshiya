@@ -2,6 +2,7 @@ package com.yupi.mianshiya.service.impl;
 
 import static com.yupi.mianshiya.constant.UserConstant.USER_LOGIN_STATE;
 
+import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -16,6 +17,7 @@ import com.yupi.mianshiya.model.entity.User;
 import com.yupi.mianshiya.model.enums.UserRoleEnum;
 import com.yupi.mianshiya.model.vo.LoginUserVO;
 import com.yupi.mianshiya.model.vo.UserVO;
+import com.yupi.mianshiya.saToken.DeviceUtils;
 import com.yupi.mianshiya.service.UserService;
 import com.yupi.mianshiya.utils.SqlUtils;
 
@@ -117,7 +119,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在或密码错误");
         }
         // 3. 记录用户的登录态
-        request.getSession().setAttribute(USER_LOGIN_STATE, user);
+        //改为使用SaToken记录session
+        StpUtil.login(user.getId(), DeviceUtils.getRequestDevice(request));
+        StpUtil.getSession().set(USER_LOGIN_STATE, user);
+        //request.getSession().setAttribute(USER_LOGIN_STATE, user);
         return this.getLoginUserVO(user);
     }
 
@@ -148,7 +153,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 }
             }
             // 记录用户的登录态
-            request.getSession().setAttribute(USER_LOGIN_STATE, user);
+            StpUtil.login(user.getId(), DeviceUtils.getRequestDevice(request));
+            StpUtil.getSession().set(USER_LOGIN_STATE, user);
+            //request.getSession().setAttribute(USER_LOGIN_STATE, user);
             return getLoginUserVO(user);
         }
     }
@@ -162,14 +169,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public User getLoginUser(HttpServletRequest request) {
         // 先判断是否已登录
-        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
-        User currentUser = (User) userObj;
-        if (currentUser == null || currentUser.getId() == null) {
-            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
-        }
+        //Object userObj = StpUtil.getSession().get(USER_LOGIN_STATE);
+        Object userId = StpUtil.getLoginIdDefaultNull();
+        // 如果用心信息变更不频繁,可以直接从session读
+        // Object user = StpUtil.getSessionByLoginId(userId).get(USER_LOGIN_STATE);
+        //Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+//        User currentUser = (User) userObj;
+//        if (currentUser == null || currentUser.getId() == null) {
+//            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+//        }
         // 从数据库查询（追求性能的话可以注释，直接走缓存）
-        long userId = currentUser.getId();
-        currentUser = this.getById(userId);
+        //long userId = currentUser.getId();
+        User currentUser = this.getById((String)userId);
         if (currentUser == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
@@ -185,7 +196,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public User getLoginUserPermitNull(HttpServletRequest request) {
         // 先判断是否已登录
-        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+        Object userObj = StpUtil.getSession().get(USER_LOGIN_STATE);
+        //Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
         User currentUser = (User) userObj;
         if (currentUser == null || currentUser.getId() == null) {
             return null;
@@ -204,7 +216,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public boolean isAdmin(HttpServletRequest request) {
         // 仅管理员可查询
-        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+        Object userObj = StpUtil.getSession().get(USER_LOGIN_STATE);
+        //Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
         User user = (User) userObj;
         return isAdmin(user);
     }
@@ -221,11 +234,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
      */
     @Override
     public boolean userLogout(HttpServletRequest request) {
-        if (request.getSession().getAttribute(USER_LOGIN_STATE) == null) {
+        /*if (request.getSession().getAttribute(USER_LOGIN_STATE) == null) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "未登录");
-        }
-        // 移除登录态
-        request.getSession().removeAttribute(USER_LOGIN_STATE);
+        }*/
+        StpUtil.checkLogin();
+        // 移除登录态,自动删除对应token
+        StpUtil.logout();
+        //request.getSession().removeAttribute(USER_LOGIN_STATE);
         return true;
     }
 

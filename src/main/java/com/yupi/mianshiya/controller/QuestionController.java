@@ -1,12 +1,14 @@
 package com.yupi.mianshiya.controller;
 
+import cn.dev33.satoken.annotation.SaCheckRole;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.yupi.mianshiya.annotation.AuthCheck;
+import com.yupi.mianshiya.annotation.CrawlerDetect;
 import com.yupi.mianshiya.common.BaseResponse;
 import com.yupi.mianshiya.common.DeleteRequest;
 import com.yupi.mianshiya.common.ErrorCode;
 import com.yupi.mianshiya.common.ResultUtils;
 import com.yupi.mianshiya.constant.UserConstant;
+import com.yupi.mianshiya.crawlerCounter.CounterManager;
 import com.yupi.mianshiya.exception.BusinessException;
 import com.yupi.mianshiya.exception.ThrowUtils;
 import com.yupi.mianshiya.model.dto.question.QuestionAddRequest;
@@ -41,6 +43,9 @@ public class QuestionController {
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private CounterManager counterManager;
 
     // region 增删改查
 
@@ -104,7 +109,7 @@ public class QuestionController {
      * @return
      */
     @PostMapping("/update")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> updateQuestion(@RequestBody QuestionUpdateRequest questionUpdateRequest) {
         if (questionUpdateRequest == null || questionUpdateRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -131,8 +136,12 @@ public class QuestionController {
      * @return
      */
     @GetMapping("/get/vo")
+    @CrawlerDetect
     public BaseResponse<QuestionVO> getQuestionVOById(long id, HttpServletRequest request) {
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+//        // 检测爬虫
+//        User user = userService.getLoginUser(request);
+//        counterManager.crawlerDetect(user.getId());
         // 查询数据库
         Question question = questionService.getById(id);
         ThrowUtils.throwIf(question == null, ErrorCode.NOT_FOUND_ERROR);
@@ -147,7 +156,7 @@ public class QuestionController {
      * @return
      */
     @PostMapping("/list/page")
-    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    @SaCheckRole(UserConstant.ADMIN_ROLE)
     public BaseResponse<Page<Question>> listQuestionByPage(@RequestBody QuestionQueryRequest questionQueryRequest) {
         // 查询数据库
         Page<Question> questionPage = questionService.listQuestionByPage(questionQueryRequest);

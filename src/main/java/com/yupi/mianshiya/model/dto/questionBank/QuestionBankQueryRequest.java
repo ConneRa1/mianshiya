@@ -45,7 +45,6 @@ public class QuestionBankQueryRequest extends PageRequest implements Serializabl
      * 排序的属性名
      */
     private String sortField;
-
     /**
      * 创建用户 id
      */
