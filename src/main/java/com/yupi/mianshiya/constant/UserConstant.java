@@ -13,6 +13,7 @@ public interface UserConstant {
      */
     String USER_LOGIN_STATE = "user_login";
 
+    String USER_LOGIN_DEVICE = "user_device";
     //  region 权限
 
     /**

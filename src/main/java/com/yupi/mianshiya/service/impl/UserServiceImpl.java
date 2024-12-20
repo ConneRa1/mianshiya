@@ -1,9 +1,13 @@
 package com.yupi.mianshiya.service.impl;
 
+import static com.yupi.mianshiya.constant.UserConstant.USER_LOGIN_DEVICE;
 import static com.yupi.mianshiya.constant.UserConstant.USER_LOGIN_STATE;
 
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.http.Header;
+import cn.hutool.http.useragent.UserAgent;
+import cn.hutool.http.useragent.UserAgentUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yupi.mianshiya.common.ErrorCode;
@@ -25,14 +29,17 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import me.chanjar.weixin.common.bean.WxOAuth2UserInfo;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.redisson.api.RBitSet;
+import org.redisson.api.RMap;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -120,7 +127,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         // 3. 记录用户的登录态
         //改为使用SaToken记录session
-        StpUtil.login(user.getId(), DeviceUtils.getRequestDevice(request));
+        Object existUser = StpUtil.getSessionByLoginId(user.getId()).get(USER_LOGIN_STATE);
+        String userAgentStr = request.getHeader(Header.USER_AGENT.toString());
+        if(ObjectUtils.isNotEmpty(existUser)){
+            // 使用 Hutool 解析 UserAgent
+            RMap<String,String > userLoginConflict = redissonClient.getMap("user_login_conflict");
+            userLoginConflict.put(String.valueOf(user.getId()), userAgentStr);
+        }
+        StpUtil.login(user.getId(), userAgentStr);
         StpUtil.getSession().set(USER_LOGIN_STATE, user);
         //request.getSession().setAttribute(USER_LOGIN_STATE, user);
         return this.getLoginUserVO(user);

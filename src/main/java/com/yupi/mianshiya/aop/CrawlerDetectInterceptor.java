@@ -13,6 +13,7 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -29,6 +30,7 @@ import javax.servlet.http.HttpServletRequest;
  */
 @Aspect
 @Component
+@Order(2)
 public class CrawlerDetectInterceptor {
 
     @Resource
@@ -39,19 +41,16 @@ public class CrawlerDetectInterceptor {
     /**
      * 执行拦截
      *
-     * @param joinPoint
      * @param crawlerDetect
      * @return
      */
-    @Around("@annotation(crawlerDetect)")
-    public Object doInterceptor(ProceedingJoinPoint joinPoint, CrawlerDetect crawlerDetect) throws Throwable {
+    @Before("@annotation(crawlerDetect)")
+    public void doInterceptor(CrawlerDetect crawlerDetect) throws Throwable {
         RequestAttributes requestAttributes = RequestContextHolder.currentRequestAttributes();
         HttpServletRequest request = ((ServletRequestAttributes) requestAttributes).getRequest();
         // 当前登录用户
         User loginUser = userService.getLoginUser(request);
         counterManager.crawlerDetect(loginUser.getId());
-
-        return joinPoint.proceed();
     }
 }
 

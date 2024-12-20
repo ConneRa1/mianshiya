@@ -37,6 +37,25 @@ public class DeviceUtils {
         return device;
     }
 
+    public static String getRequestDeviceFromStr(String userAgentStr) {
+        // 使用 Hutool 解析 UserAgent
+        UserAgent userAgent = UserAgentUtil.parse(userAgentStr);
+        ThrowUtils.throwIf(userAgent == null, ErrorCode.OPERATION_ERROR, "非法请求");
+        // 默认值是 PC
+        String device = "pc";
+        // 是否为小程序
+        if (isMiniProgram(userAgentStr)) {
+            device = "miniProgram";
+        } else if (isPad(userAgentStr)) {
+            // 是否为 Pad
+            device = "pad";
+        } else if (userAgent.isMobile()) {
+            // 是否为手机
+            device = "mobile";
+        }
+        return device;
+    }
+
     /**
      * 判断是否是小程序
      * 一般通过 User-Agent 字符串中的 "MicroMessenger" 来判断是否是微信小程序

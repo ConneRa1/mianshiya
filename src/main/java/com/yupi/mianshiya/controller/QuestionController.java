@@ -3,6 +3,7 @@ package com.yupi.mianshiya.controller;
 import cn.dev33.satoken.annotation.SaCheckRole;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yupi.mianshiya.annotation.CrawlerDetect;
+import com.yupi.mianshiya.annotation.LoginConflictCheck;
 import com.yupi.mianshiya.common.BaseResponse;
 import com.yupi.mianshiya.common.DeleteRequest;
 import com.yupi.mianshiya.common.ErrorCode;
@@ -136,6 +137,7 @@ public class QuestionController {
      * @return
      */
     @GetMapping("/get/vo")
+    @LoginConflictCheck
     @CrawlerDetect
     public BaseResponse<QuestionVO> getQuestionVOById(long id, HttpServletRequest request) {
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
