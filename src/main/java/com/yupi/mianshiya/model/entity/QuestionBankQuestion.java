@@ -7,8 +7,10 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import java.io.Serializable;
 import java.util.Date;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 /**
@@ -18,6 +20,8 @@ import lombok.experimental.SuperBuilder;
 @TableName(value ="question_bank_question")
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class QuestionBankQuestion implements Serializable {
     /**
      * id

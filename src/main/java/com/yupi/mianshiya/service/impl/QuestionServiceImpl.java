@@ -281,8 +281,9 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         Long questionBankId = questionQueryRequest.getQuestionBankId();
         if (questionBankId != null) {
             // 查询题库内的题目 id
-            LambdaQueryWrapper<QuestionBankQuestion> lambdaQueryWrapper = Wrappers.lambdaQuery(QuestionBankQuestion.class)
-                    .select(QuestionBankQuestion::getQuestionId)
+            LambdaQueryWrapper<QuestionBankQuestion> lambdaQueryWrapper =
+                    new LambdaQueryWrapper<QuestionBankQuestion>()
+                            .select(QuestionBankQuestion::getQuestionId)
                     .eq(QuestionBankQuestion::getQuestionBankId, questionBankId);
             List<QuestionBankQuestion> questionList = questionBankQuestionService.list(lambdaQueryWrapper);
             if (CollUtil.isNotEmpty(questionList)) {

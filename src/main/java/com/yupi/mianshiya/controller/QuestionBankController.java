@@ -11,6 +11,7 @@ import com.alibaba.csp.sentinel.slots.block.degrade.DegradeException;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
 import com.yupi.mianshiya.annotation.AuthCheck;
+import com.yupi.mianshiya.annotation.HotKeyDetect;
 import com.yupi.mianshiya.common.BaseResponse;
 import com.yupi.mianshiya.common.DeleteRequest;
 import com.yupi.mianshiya.common.ErrorCode;
@@ -147,19 +148,20 @@ public class QuestionBankController {
      * @return
      */
     @GetMapping("/get/vo")
+    @HotKeyDetect(KeyPrefix = "bank_detail_",Key = "#questionBankQueryRequest.id")
     public BaseResponse<QuestionBankVO> getQuestionBankVOById(QuestionBankQueryRequest questionBankQueryRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(questionBankQueryRequest == null, ErrorCode.PARAMS_ERROR);
         Long id = questionBankQueryRequest.getId();
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
 
         // hotkey探测，有就直接返
-        String key="bank_detail_"+id;
+        /*String key="bank_detail_"+id;
         if(JdHotKeyStore.isHotKey(key)){
             Object vo = JdHotKeyStore.get(key);
             if(vo!=null){
                 return ResultUtils.success((QuestionBankVO) vo);
             }
-        }
+        }*/
 
         // 查询数据库
         QuestionBank questionBank = questionBankService.getById(id);
@@ -176,7 +178,7 @@ public class QuestionBankController {
         }
 
         //smartSet是热键就设置
-        JdHotKeyStore.smartSet(key,questionBankVO);
+        //JdHotKeyStore.smartSet(key,questionBankVO);
         // 获取封装类
         return ResultUtils.success(questionBankVO);
     }

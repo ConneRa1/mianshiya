@@ -17,6 +17,17 @@ spring:
     store-type: redis
     # 30 天过期
     timeout: 2592000
+  jackson:
+    # 日期格式化
+    date-format: yyyy-MM-dd HH:mm:ss
+    serialization:
+      # 格式化输出
+      indent_output: false
+      # 忽略无法转换的对象
+      fail_on_empty_beans: false
+    deserialization:
+      # 允许对象忽略json中不存在的属性
+      fail_on_unknown_properties: false
   # 数据库配置
   # todo 需替换配置
   datasource:
