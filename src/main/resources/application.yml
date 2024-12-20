@@ -11,6 +11,53 @@ spring:
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher
+  cloud:
+    nacos: #配置nacos注册中心地址
+      discovery:
+        server-addr: localhost:8848
+        username: nacos
+        password: nacos
+    sentinel:
+      transport:
+        dashboard: localhost:8131
+      datasource:
+        flow-rules: #流控规则
+          nacos:
+            server-addr: localhost:8848
+            username: nacos
+            password: nacos
+            dataId: ${spring.application.name}-flow-rules
+            groupId: mianshiya   # 注意groupId对应Sentinel Dashboard中的定义
+            data-type: json
+            rule-type: flow
+        degrade-rules: #降级规则
+          nacos:
+            server-addr: localhost:8848
+            dataId: ${spring.application.name}-degrade-rules
+            groupId: mianshiya
+            data-type: json
+            rule-type: degrade
+        param-flow-rules:
+          nacos:
+            server-addr: localhost:8848
+            dataId: ${spring.application.name}-param-flow-rules
+            groupId: mianshiya
+            data-type: json
+            rule-type: param-flow
+        authority-rules:
+          nacos:
+            server-addr: localhost:8848
+            dataId: ${spring.application.name}-authority-rules
+            groupId: mianshiya
+            data-type: json
+            rule-type: authority
+        system-rules:
+          nacos:
+            server-addr: localhost:8848
+            dataId: ${spring.application.name}-system-rules
+            groupId: mianshiya
+            data-type: json
+            rule-type: system
   # session 配置
   session:
     # todo 取消注释开启分布式 session（须先配置 Redis）

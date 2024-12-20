@@ -138,8 +138,13 @@
             <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
             <version>2021.0.5.0</version>
         </dependency>
-
-
+        <!--sentinel持久化 采用 Nacos 作为规则配置数据源-->
+        <!-- https://mavenlibs.com/maven/dependency/com.alibaba.csp/sentinel-datasource-nacos -->
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-datasource-nacos</artifactId>
+            <version>1.8.6</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>

@@ -12,7 +12,7 @@ import javax.annotation.PostConstruct;
 import java.util.Arrays;
 import java.util.Collections;
 
-@Component
+//@Component
 public class SentinelRulesManager {
 
     @PostConstruct
