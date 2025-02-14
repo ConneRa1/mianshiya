@@ -148,7 +148,7 @@ public class QuestionBankController {
      * @return
      */
     @GetMapping("/get/vo")
-    @HotKeyDetect(KeyPrefix = "bank_detail_",Key = "#questionBankQueryRequest.id")
+    //@HotKeyDetect(KeyPrefix = "bank_detail_",Key = "#questionBankQueryRequest.id")
     public BaseResponse<QuestionBankVO> getQuestionBankVOById(QuestionBankQueryRequest questionBankQueryRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(questionBankQueryRequest == null, ErrorCode.PARAMS_ERROR);
         Long id = questionBankQueryRequest.getId();

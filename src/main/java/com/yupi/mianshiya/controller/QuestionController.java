@@ -245,7 +245,13 @@ public class QuestionController {
 
     // endregion
 
-    @PostMapping
+    /**
+     * 搜索题目
+     *
+     * @param questionQueryRequest
+     * @return
+     */
+    @PostMapping("/search")
     public BaseResponse<Page<Question>> searchFromEs(@RequestBody QuestionQueryRequest questionQueryRequest){
         Page<Question> questionPage = questionService.searchFromEs(questionQueryRequest);
         return ResultUtils.success(questionPage);
